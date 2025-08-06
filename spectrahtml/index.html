@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpectraLoop - BLDC Motor Kontrol Sistemi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(124, 77, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(0, 255, 136, 0.05) 0%, transparent 50%),
+                linear-gradient(135deg, #0a0a1a, #1a1a2e, #16213e, #0f0f23);
+            font-family: 'Segoe UI', 'Orbitron', 'Exo 2', monospace;
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 98px,
+                    rgba(0, 212, 255, 0.02) 100px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 25px;
+            background: 
+                linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(26, 26, 62, 0.6)),
+                radial-gradient(circle at center, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+            backdrop-filter: blur(20px);
+            border-bottom: 3px solid transparent;
+            border-image: linear-gradient(90deg, #00d4ff, #7c4dff, #00ff88) 1;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 10;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: scan 3s linear infinite;
+        }
+        
+        @keyframes scan {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 900;
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(45deg, #00d4ff, #0099cc, #7c4dff, #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 
+                0 0 20px rgba(0, 212, 255, 0.5),
+                0 0 40px rgba(124, 77, 255, 0.3),
+                0 0 60px rgba(0, 255, 136, 0.2);
+            margin-bottom: 10px;
+            letter-spacing: 3px;
+            position: relative;
+        }
+        
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { opacity: 0.5; box-shadow: 0 0 10px #00d4ff; }
+            to { opacity: 1; box-shadow: 0 0 20px #00d4ff, 0 0 30px #7c4dff; }
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 350px;
+            gap: 25px;
+            padding: 25px;
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 5;
+        }
+
+        .control-panel {
+            background: 
+                linear-gradient(145deg, rgba(0, 0, 0, 0.7), rgba(26, 26, 62, 0.5)),
+                radial-gradient(circle at top right, rgba(0, 212, 255, 0.1) 0%, transparent 50%);
+            backdrop-filter: blur(25px);
+            border-radius: 25px;
+            padding: 30px;
+            border: 2px solid transparent;
+            border-image: linear-gradient(145deg, rgba(0, 212, 255, 0.5), rgba(124, 77, 255, 0.3), rgba(0, 255, 136, 0.4)) 1;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 0 0 1px rgba(0, 212, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .control-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+            animation: shine 4s infinite;
+        }
+        
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Kamera Modülü - Sağ Panel */
+        .camera-panel {
+            background: 
+                linear-gradient(145deg, rgba(0, 0, 0, 0.8), rgba(26, 26, 62, 0.6)),
+                radial-gradient(circle at center, rgba(0, 212, 255, 0.15) 0%, transparent 60%);
+            backdrop-filter: blur(25px);
+            border-radius: 25px;
+            padding: 25px;
+            border: 2px solid transparent;
+            border-image: linear-gradient(145deg, rgba(0, 212, 255, 0.6), rgba(124, 77, 255, 0.4), rgba(0, 255, 136, 0.5)) 1;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                0 0 0 1px rgba(0, 212, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            height: fit-content;
+        }
+
+        .camera-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.15), transparent);
+            animation: shine 5s infinite;
+        }
+
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .camera-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .camera-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse-dot 2s infinite;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            color: #00ff88;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .camera-container {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            padding: 15px;
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            box-shadow: 
+                inset 0 2px 10px rgba(0, 0, 0, 0.3),
+                0 0 20px rgba(0, 212, 255, 0.2);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: scan-camera 2s linear infinite;
+        }
+
+        @keyframes scan-camera {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        .camera-stream {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: 
+                linear-gradient(45deg, rgba(0, 0, 0, 0.8) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(0, 0, 0, 0.8) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.8) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.8) 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .camera-stream.loading {
+            animation: loading-pulse 1.5s ease-in-out infinite;
+        }
+
+        .camera-stream.error {
+            filter: grayscale(100%) brightness(0.3);
+            border-color: #ff4444;
+        }
+
+        @keyframes loading-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .camera-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .camera-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse-info 3s infinite;
+        }
+
+        @keyframes pulse-info {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .zoom-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .system-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .status-connected { color: #00ff88; }
+        .status-armed { color: #ffaa00; }
+        .status-running { color: #00d4ff; }
+        .status-error { color: #ff4444; }
+
+        .arm-section {
+            margin-bottom: 25px;
+        }
+
+        .arm-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .arm-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .arm-button.armed {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .motor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .motor-control {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+
+        .motor-control:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .motor-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .motor-button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .motor-start {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            color: white;
+        }
+
+        .motor-start:hover {
+            background: linear-gradient(45deg, #33ddff, #00aadd);
+            transform: scale(1.05);
+        }
+
+        .motor-stop {
+            background: linear-gradient(45deg, #ff4444, #cc3333);
+            color: white;
+        }
+
+        .motor-stop:hover {
+            background: linear-gradient(45deg, #ff6666, #dd4444);
+            transform: scale(1.05);
+        }
+
+        .motor-status {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .motor-status.off { background: #333; color: #aaa; }
+        .motor-status.running { background: #00ff88; color: #000; }
+
+        .system-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .system-button {
+            padding: 15px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .levitation-start {
+            background: linear-gradient(45deg, #7c4dff, #5c2fc7);
+            color: white;
+            box-shadow: 0 4px 15px rgba(124, 77, 255, 0.3);
+        }
+
+        .levitation-stop {
+            background: linear-gradient(45deg, #ff6b35, #e55100);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .thrust-start {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: black;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .thrust-stop {
+            background: linear-gradient(45deg, #ff4444, #cc3333);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+        }
+
+        .system-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .emergency-stop {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff0000, #cc0000);
+            border: 4px solid white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+            text-transform: uppercase;
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .emergency-stop:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 35px rgba(255, 0, 0, 0.6);
+        }
+
+        .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 30px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .notification.success {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: black;
+        }
+
+        .notification.error {
+            background: linear-gradient(45deg, #ff4444, #cc3333);
+        }
+
+        .notification.warning {
+            background: linear-gradient(45deg, #ffaa00, #ff8800);
+            color: black;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+            .main-container {
+                grid-template-columns: 1fr 1fr;
+                max-width: 1200px;
+            }
+            
+            .camera-panel {
+                grid-column: 1 / -1;
+                order: -1;
+                height: auto;
+            }
+            
+            .camera-stream {
+                height: 200px;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+            
+            .motor-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .camera-stream {
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .motor-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .system-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .camera-stream {
+                height: 200px;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 212, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">SPECTRALOOP</div>
+        <div class="subtitle">BLDC Motor Kontrol Sistemi</div>
+    </div>
+
+    <!-- Ana Container -->
+    <div class="main-container">
+        <!-- Sol Panel - Motor Kontrolleri -->
+        <div class="control-panel">
+            <div class="panel-title">🎛️ Motor Kontrol Paneli</div>
+            
+            <!-- Sistem Durumu -->
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-label">Arduino</div>
+                    <div class="status-value status-connected" id="arduino-status">Bağlı</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Sistem</div>
+                    <div class="status-value status-armed" id="system-status">Hazır</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Motorlar</div>
+                    <div class="status-value" id="motor-count">0/6 Aktif</div>
+                </div>
+            </div>
+
+            <!-- Arming Bölümü -->
+            <div class="arm-section">
+                <button class="arm-button" id="arm-button" onclick="toggleArm()">
+                    🔧 SİSTEMİ HAZIRLA (ARM)
+                </button>
+            </div>
+
+            <!-- Motor Kontrolleri -->
+            <div class="motor-grid">
+                <div class="motor-control" data-motor="1">
+                    <div class="motor-label">Motor 1 (Levitasyon)</div>
+                    <button class="motor-button motor-start" onclick="controlMotor(1, 'start')">Başlat</button>
+                    <button class="motor-button motor-stop" onclick="controlMotor(1, 'stop')">Durdur</button>
+                    <div class="motor-status off" id="motor1-status">Kapalı</div>
+                </div>
+                
+                <div class="motor-control" data-motor="2">
+                    <div class="motor-label">Motor 2 (Levitasyon)</div>
+                    <button class="motor-button motor-start" onclick="controlMotor(2, 'start')">Başlat</button>
+                    <button class="motor-button motor-stop" onclick="controlMotor(2, 'stop')">Durdur</button>
+                    <div class="motor-status off" id="motor2-status">Kapalı</div>
+                </div>
+                
+                <div class="motor-control" data-motor="3">
+                    <div class="motor-label">Motor 3 (Levitasyon)</div>
+                    <button class="motor-button motor-start" onclick="controlMotor(3, 'start')">Başlat</button>
+                    <button class="motor-button motor-stop" onclick="controlMotor(3, 'stop')">Durdur</button>
+                    <div class="motor-status off" id="motor3-status">Kapalı</div>
+                </div>
+                
+                <div class="motor-control" data-motor="4">
+                    <div class="motor-label">Motor 4 (Levitasyon)</div>
+                    <button class="motor-button motor-start" onclick="controlMotor(4, 'start')">Başlat</button>
+                    <button class="motor-button motor-stop" onclick="controlMotor(4, 'stop')">Durdur</button>
+                    <div class="motor-status off" id="motor4-status">Kapalı</div>
+                </div>
+                
+                <div class="motor-control" data-motor="5">
+                    <div class="motor-label">Motor 5 (İtki)</div>
+                    <button class="motor-button motor-start" onclick="controlMotor(5, 'start')">Başlat</button>
+                    <button class="motor-button motor-stop" onclick="controlMotor(5, 'stop')">Durdur</button>
+                    <div class="motor-status off" id="motor5-status">Kapalı</div>
+                </div>
+                
+                <div class="motor-control" data-motor="6">
+                    <div class="motor-label">Motor 6 (İtki)</div>
+                    <button class="motor-button motor-start" onclick="controlMotor(6, 'start')">Başlat</button>
+                    <button class="motor-button motor-stop" onclick="controlMotor(6, 'stop')">Durdur</button>
+                    <div class="motor-status off" id="motor6-status">Kapalı</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orta Panel - Sistem Kontrolleri -->
+        <div class="control-panel">
+            <div class="panel-title">🚀 Sistem Kontrolleri</div>
+            
+            <!-- Sistem Butonları -->
+            <div class="system-controls">
+                <button class="system-button levitation-start" onclick="controlLevitation('start')">
+                    🔮 LEVİTASYON BAŞLAT
+                </button>
+                
+                <button class="system-button levitation-stop" onclick="controlLevitation('stop')">
+                    ⏹️ LEVİTASYON DURDUR
+                </button>
+                
+                <button class="system-button thrust-start" onclick="controlThrust('start')">
+                    ⚡ İTKİ SİSTEMİ BAŞLAT
+                </button>
+                
+                <button class="system-button thrust-stop" onclick="controlThrust('stop')">
+                    🛑 İTKİ SİSTEMİ DURDUR
+                </button>
+            </div>
+
+            <!-- Fren Kontrol Butonları -->
+            <div class="system-controls" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;">
+                <button class="system-button" style="background: linear-gradient(45deg, #ff6b35, #e55100);" onclick="controlBrake('on')">
+                    🔒 FREN SİSTEMİ AKTİF
+                </button>
+                
+                <button class="system-button" style="background: linear-gradient(45deg, #00ff88, #00cc6a); color: black;" onclick="controlBrake('off')">
+                    🔓 FREN SİSTEMİ PASİF
+                </button>
+            </div>
+
+            <!-- Sensör Verileri -->
+            <div style="margin-top: 30px;">
+                <h3 style="color: #00d4ff; margin-bottom: 15px;">📊 Sensör Verileri</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                        <div style="color: #aaa; font-size: 0.9rem;">RPM Ortalaması</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #00d4ff;" id="rpm-display">0</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                        <div style="color: #aaa; font-size: 0.9rem;">Güç Tüketimi</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #00ff88;" id="power-display">0W</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                        <div style="color: #aaa; font-size: 0.9rem;">Sıcaklık</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #ffaa00;" id="temp-display">25°C</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                        <div style="color: #aaa; font-size: 0.9rem;">Fren Durumu</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #ff6b35;" id="brake-display">Pasif</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sağ Panel - Kamera Modülü -->
+        <div class="camera-panel">
+            <div class="camera-header">
+                <div class="camera-title">🛰️ KAMERA</div>
+                <div class="camera-status">
+                    <div class="status-dot"></div>
+                    <div class="status-text">ONLINE</div>
+                </div>
+            </div>
+            
+            <div class="camera-container">
+                <img id="camera-stream" class="camera-stream" alt="Quantum Camera Initializing..." />
+            </div>
+            
+            <div class="camera-controls">
+                <div class="camera-info">
+                    <div class="info-item">
+                        <div class="info-dot"></div>
+                        <span>4K HDR</span>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-dot"></div>
+                        <span>AI ENHANCED</span>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-dot"></div>
+                        <span>REALTIME</span>
+                    </div>
+                </div>
+                
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="adjustZoom(-1)">-</button>
+                    <button class="zoom-btn" onclick="adjustZoom(1)">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acil Durdurma -->
+    <div class="emergency-stop" onclick="emergencyStop()">
+        🚨<br>ACİL<br>FREN<br>STOP
+    </div>
+
+    <!-- Bildirim -->
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // Backend URL'si
+        const BACKEND_URL = 'http://172.20.10.9:5001';
+        const CAMERA_URL = 'http://localhost:5000/stream.mjpeg';
+        
+        // Sistem durumu
+        let systemArmed = false;
+        let motorStates = {
+            1: false, 2: false, 3: false, 4: false, 5: false, 6: false
+        };
+        let levitationActive = false;
+        let thrustActive = false;
+        let brakeActive = false;  // Fren durumu
+        let startTime = Date.now();
+
+        // Arming sistemi
+        async function toggleArm() {
+            try {
+                const action = systemArmed ? 'disarm' : 'arm';
+                const response = await fetch(`${BACKEND_URL}/api/system/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                systemArmed = !systemArmed;
+                
+                const button = document.getElementById('arm-button');
+                const status = document.getElementById('system-status');
+                
+                if (systemArmed) {
+                    button.textContent = '✅ SİSTEM HAZIR (DISARM)';
+                    button.classList.add('armed');
+                    status.textContent = 'Armed';
+                    status.className = 'status-value status-armed';
+                    showNotification('🎯 Sistem armed! Motorlar kontrol edilebilir.', 'success');
+                } else {
+                    button.textContent = '🔧 SİSTEMİ HAZIRLA (ARM)';
+                    button.classList.remove('armed');
+                    status.textContent = 'Disarmed';
+                    status.className = 'status-value status-error';
+                    showNotification('🔒 Sistem disarmed! Tüm motorlar durduruldu.', 'warning');
+                    
+                    // Tüm motorları durdur
+                    for (let i = 1; i <= 6; i++) {
+                        motorStates[i] = false;
+                        updateMotorStatus(i, false);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Arm/Disarm hatası:', error);
+                showNotification(`❌ Sistem hatası: ${error.message}`, 'error');
+            }
+        }
+
+        // Motor kontrolü
+        async function controlMotor(motorNum, action) {
+            if (!systemArmed) {
+                showNotification('⚠️ Önce sistemi hazırlamanız gerekiyor!', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/motor/${motorNum}/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                motorStates[motorNum] = (action === 'start');
+                updateMotorStatus(motorNum, motorStates[motorNum]);
+                updateMotorCount();
+                
+                const status = motorStates[motorNum] ? 'başlatıldı' : 'durduruldu';
+                showNotification(`🎯 Motor ${motorNum} ${status}!`, 'success');
+                
+            } catch (error) {
+                console.error(`Motor ${motorNum} kontrol hatası:`, error);
+                showNotification(`❌ Motor ${motorNum} hatası: ${error.message}`, 'error');
+            }
+        }
+
+        // Levitasyon sistemi kontrolü
+        async function controlLevitation(action) {
+            if (!systemArmed) {
+                showNotification('⚠️ Önce sistemi hazırlamanız gerekiyor!', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/levitation/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                levitationActive = (action === 'start');
+                
+                // Motor 1-4 durumunu güncelle
+                for (let i = 1; i <= 4; i++) {
+                    motorStates[i] = levitationActive;
+                    updateMotorStatus(i, motorStates[i]);
+                }
+                
+                updateMotorCount();
+                const status = levitationActive ? 'başlatıldı' : 'durduruldu';
+                showNotification(`🔮 Levitasyon sistemi ${status}!`, 'success');
+                
+            } catch (error) {
+                console.error('Levitasyon kontrol hatası:', error);
+                showNotification(`❌ Levitasyon hatası: ${error.message}`, 'error');
+            }
+        }
+
+        // İtki sistemi kontrolü
+        async function controlThrust(action) {
+            if (!systemArmed) {
+                showNotification('⚠️ Önce sistemi hazırlamanız gerekiyor!', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/thrust/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                thrustActive = (action === 'start');
+                
+                // Motor 5-6 durumunu güncelle
+                for (let i = 5; i <= 6; i++) {
+                    motorStates[i] = thrustActive;
+                    updateMotorStatus(i, motorStates[i]);
+                }
+                
+                updateMotorCount();
+                const status = thrustActive ? 'başlatıldı' : 'durduruldu';
+                showNotification(`⚡ İtki sistemi ${status}!`, 'success');
+                
+            } catch (error) {
+                console.error('İtki kontrol hatası:', error);
+                showNotification(`❌ İtki hatası: ${error.message}`, 'error');
+            }
+        }
+
+        // Fren sistemi kontrolü
+        async function controlBrake(action) {
+            try {
+                console.log(`🔒 Fren sistemi ${action} komutu gönderiliyor...`);
+                
+                const response = await fetch(`${BACKEND_URL}/api/brake/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                brakeActive = (action === 'on');
+                
+                // Fren durumunu güncelle
+                updateBrakeStatus(brakeActive);
+                
+                // Fren aktifse tüm motorları durdur
+                if (brakeActive) {
+                    for (let i = 1; i <= 6; i++) {
+                        motorStates[i] = false;
+                        updateMotorStatus(i, false);
+                    }
+                    levitationActive = false;
+                    thrustActive = false;
+                    updateMotorCount();
+                }
+                
+                const status = brakeActive ? 'aktif edildi' : 'pasif edildi';
+                showNotification(`🔒 Fren sistemi ${status}!`, brakeActive ? 'warning' : 'success');
+                
+            } catch (error) {
+                console.error('Fren kontrol hatası:', error);
+                showNotification(`❌ Fren sistemi hatası: ${error.message}`, 'error');
+            }
+        }
+
+        // Acil durdurma
+        async function emergencyStop() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/emergency-stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors'
+                });
+
+                // Tüm motorları durumunu sıfırla
+                for (let i = 1; i <= 6; i++) {
+                    motorStates[i] = false;
+                    updateMotorStatus(i, false);
+                }
+                
+                levitationActive = false;
+                thrustActive = false;
+                systemArmed = false;
+                brakeActive = true;  // Emergency stop ile fren aktif olur
+                
+                const button = document.getElementById('arm-button');
+                button.textContent = '🔧 SİSTEMİ HAZIRLA (ARM)';
+                button.classList.remove('armed');
+                
+                updateMotorCount();
+                updateBrakeStatus(true);  // Fren durumunu güncelle
+                showNotification('🚨 ACİL DURDURMA! Fren sistemi aktif! Tüm sistemler kapatıldı!', 'error');
+                
+            } catch (error) {
+                console.error('Acil durdurma hatası:', error);
+                showNotification('❌ Acil durdurma komutu gönderilemedi!', 'error');
+            }
+        }
+
+        // Motor durumu güncelleme
+        function updateMotorStatus(motorNum, isRunning) {
+            const statusElement = document.getElementById(`motor${motorNum}-status`);
+            if (statusElement) {
+                statusElement.textContent = isRunning ? 'Çalışıyor' : 'Kapalı';
+                statusElement.className = isRunning ? 'motor-status running' : 'motor-status off';
+            }
+        }
+
+        // Fren durumunu güncelle
+        function updateBrakeStatus(isActive) {
+            const brakeDisplay = document.getElementById('brake-display');
+            if (brakeDisplay) {
+                brakeDisplay.textContent = isActive ? 'Aktif' : 'Pasif';
+                brakeDisplay.style.color = isActive ? '#ff6b35' : '#00ff88';
+            }
+        }
+
+        // Aktif motor sayısını güncelle
+        function updateMotorCount() {
+            const activeCount = Object.values(motorStates).filter(state => state).length;
+            document.getElementById('motor-count').textContent = `${activeCount}/6 Aktif`;
+        }
+
+        // Sistem durumu kontrolü
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/status`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error('Backend erişilemiyor');
+                
+                const data = await response.json();
+                
+                // Arduino durumu
+                const arduinoStatus = document.getElementById('arduino-status');
+                if (data.connected) {
+                    arduinoStatus.textContent = 'Bağlı';
+                    arduinoStatus.className = 'status-value status-connected';
+                } else {
+                    arduinoStatus.textContent = 'Bağlı Değil';
+                    arduinoStatus.className = 'status-value status-error';
+                }
+
+                // Motor durumları (eğer API'den geliyorsa)
+                if (data.motors) {
+                    for (let i = 1; i <= 6; i++) {
+                        if (data.motors[`motor${i}`] !== undefined) {
+                            motorStates[i] = data.motors[`motor${i}`];
+                            updateMotorStatus(i, motorStates[i]);
+                        }
+                    }
+                    updateMotorCount();
+                }
+                
+            } catch (error) {
+                console.error('Sistem durum kontrolü hatası:', error);
+                const arduinoStatus = document.getElementById('arduino-status');
+                arduinoStatus.textContent = 'Hata';
+                arduinoStatus.className = 'status-value status-error';
+            }
+        }
+
+        // Sensör verilerini güncelle
+        function updateSensorData() {
+            // Simüle edilmiş veriler - gerçek sensörlerden gelecek
+            const activeMotors = Object.values(motorStates).filter(state => state).length;
+            
+            // RPM hesaplama (aktif motor sayısına göre)
+            const baseRPM = activeMotors > 0 ? 1500 + Math.random() * 500 : 0;
+            document.getElementById('rpm-display').textContent = Math.round(baseRPM);
+            
+            // Güç tüketimi
+            const powerConsumption = activeMotors * (45 + Math.random() * 15);
+            document.getElementById('power-display').textContent = Math.round(powerConsumption) + 'W';
+            
+            // Sıcaklık
+            const temperature = 25 + (activeMotors * 5) + Math.random() * 10;
+            document.getElementById('temp-display').textContent = Math.round(temperature) + '°C';
+        }
+
+        // Zoom kontrol fonksiyonu
+        function adjustZoom(direction) {
+            // Zoom simülasyonu - gerçek uygulamada kamera API'si kullanılır
+            const camera = document.getElementById('camera-stream');
+            let currentScale = parseFloat(camera.style.transform.replace(/[^\d.]/g, '') || '1');
+            
+            if (direction > 0 && currentScale < 2) {
+                currentScale += 0.1;
+            } else if (direction < 0 && currentScale > 0.5) {
+                currentScale -= 0.1;
+            }
+            
+            camera.style.transform = `scale(${currentScale})`;
+            showNotification(`📹 Zoom: ${Math.round(currentScale * 100)}%`, 'success');
+        }
+
+        // Kamera stream'i başlat
+        function startCameraStream() {
+            const cameraImg = document.getElementById('camera-stream');
+            const statusDot = document.querySelector('.status-dot');
+            const statusText = document.querySelector('.status-text');
+            
+            cameraImg.className = 'camera-stream loading';
+            statusDot.style.background = '#ffaa00';
+            statusText.textContent = 'Bağlanıyor...';
+            
+            cameraImg.onload = function() {
+                console.log('✅ Quantum Camera stream başarıyla yüklendi');
+                cameraImg.className = 'camera-stream';
+                statusDot.style.background = '#00ff88';
+                statusText.textContent = 'AKTİF';
+            };
+            
+            cameraImg.onerror = function() {
+                console.error('❌ Quantum Camera stream hatası');
+                cameraImg.className = 'camera-stream error';
+                statusDot.style.background = '#ff4444';
+                statusText.textContent = 'OFFLINE';
+                setTimeout(() => {
+                    const timestamp = new Date().getTime();
+                    cameraImg.src = `${CAMERA_URL}?t=${timestamp}`;
+                }, 5000);
+            };
+            
+            const timestamp = new Date().getTime();
+            cameraImg.src = `${CAMERA_URL}?t=${timestamp}`;
+        }
+
+        // Bildirim göster
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // Klavye kısayolları
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey) {
+                switch(event.key) {
+                    case '1':
+                        event.preventDefault();
+                        toggleArm();
+                        break;
+                    case '2':
+                        event.preventDefault();
+                        controlLevitation(levitationActive ? 'stop' : 'start');
+                        break;
+                    case '3':
+                        event.preventDefault();
+                        controlThrust(thrustActive ? 'stop' : 'start');
+                        break;
+                    case 'e':
+                        event.preventDefault();
+                        emergencyStop();
+                        break;
+                }
+            }
+        });
+
+        // Sayfa yüklendiğinde başlatma
+        window.onload = function() {
+            console.log('🚀 SpectraLoop Motor Kontrol Sistemi başlatılıyor...');
+            
+            // İlk durum kontrolü
+            setTimeout(checkSystemStatus, 1000);
+            
+            // Kamera stream'ini başlat
+            setTimeout(startCameraStream, 1500);
+            
+            // Periyodik güncellemeler
+            setInterval(checkSystemStatus, 10000);  // 10 saniyede bir durum kontrolü
+            setInterval(updateSensorData, 1000);    // 1 saniyede bir sensör verileri
+            
+            // Hoş geldin mesajı
+            setTimeout(() => {
+                showNotification('🎉 SpectraLoop Kontrol Sistemi Hazır!', 'success');
+            }, 2000);
+            
+            // Klavye kısayolları hakkında bilgi
+            setTimeout(() => {
+                showNotification('⌨️ Kısayollar: Ctrl+1 (Arm), Ctrl+2 (Levitasyon), Ctrl+3 (İtki), Ctrl+E (Acil Stop)', 'warning');
+            }, 5000);
+        };
+
+        // Sayfa kapanırken temizlik
+        window.onbeforeunload = function() {
+            if (systemArmed) {
+                emergencyStop();
+            }
+        };
+    </script>
+</body>
+</html>

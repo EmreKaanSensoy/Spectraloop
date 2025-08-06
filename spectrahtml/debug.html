@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎥 MJPEG Stream Debug Tool</title>
+    <style>
+        * { box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #3498db, #9b59b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .success { 
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        
+        .error { 
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+            border: 2px solid #dc3545;
+        }
+        
+        .warning { 
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            color: #856404;
+            border: 2px solid #ffc107;
+        }
+        
+        .info { 
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            color: #0c5460;
+            border: 2px solid #17a2b8;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid #dee2e6;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(45deg, #007bff, #28a745);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #e9ecef, #f8f9fa);
+            border-radius: 15px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        button:hover:before {
+            left: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: white;
+        }
+        
+        .btn-danger { 
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+        
+        .btn-warning { 
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: #212529;
+        }
+        
+        .url-info {
+            background: linear-gradient(135deg, #f1f3f4, #e9ecef);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 20px 0;
+            word-break: break-all;
+            border-left: 4px solid #007bff;
+        }
+        
+        .debug-info {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #333;
+            position: relative;
+        }
+        
+        .debug-info:before {
+            content: '● ● ●';
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #ff5f56;
+            font-size: 12px;
+        }
+        
+        .stream-container {
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border: 2px solid #dee2e6;
+            border-radius: 20px;
+            padding: 25px;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .stream-container:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .stream-container h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+            font-size: 18px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            border: 2px dashed #dee2e6;
+        }
+        
+        .stream-img {
+            max-width: 100%;
+            height: auto;
+            border: 3px solid #28a745;
+            border-radius: 15px;
+            background-color: #000;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stream-img.error {
+            border-color: #dc3545 !important;
+            filter: grayscale(100%);
+        }
+        
+        canvas {
+            border: 3px solid #17a2b8;
+            border-radius: 15px;
+            background-color: #000;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        canvas:hover {
+            transform: scale(1.02);
+        }
+        
+        .method-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 200px;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎥 MJPEG Stream Debug Tool</h1>
+
+    <div id="status" class="status warning">🚀 Sistem başlatılıyor...</div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-value" id="connectionCount">0</div>
+            <div class="stat-label">🔗 Bağlantı Sayısı</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="errorCount">0</div>
+            <div class="stat-label">❌ Hata Sayısı</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="uptime">00:00</div>
+            <div class="stat-label">⏱️ Çalışma Süresi</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="lastUpdate">-</div>
+            <div class="stat-label">🔄 Son Güncelleme</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-success" onclick="testServer()">🔍 Server Test</button>
+        <button class="btn-warning" onclick="testCamera()">📹 Kamera Test</button>
+        <button class="btn-primary" onclick="startStream()">▶️ Stream Başlat</button>
+        <button class="btn-danger" onclick="stopStream()">⏹️ Stream Durdur</button>
+        <button class="btn-primary" onclick="refreshStream()">🔄 Yenile</button>
+        <button class="btn-warning" onclick="clearLog()">🗑️ Log Temizle</button>
+    </div>
+
+    <div class="url-info">
+        <strong>📡 Stream URL:</strong> <span id="streamUrl">-</span>
+    </div>
+
+    <div class="debug-info">
+        <strong>🔧 Debug Terminal:</strong>
+        <div id="debugLog">Sistem başlatılıyor...</div>
+    </div>
+
+    <!-- Method Tabs -->
+    <div class="method-tabs">
+        <button class="tab-button active" onclick="switchTab('img')">🖼️ IMG Tag</button>
+        <button class="tab-button" onclick="switchTab('canvas')">🎨 Canvas</button>
+        <button class="tab-button" onclick="switchTab('fetch')">🌐 Fetch API</button>
+        <button class="tab-button" onclick="switchTab('smooth')">✨ Smooth Stream</button>
+    </div>
+
+    <!-- IMG Tag Method -->
+    <div id="img-tab" class="tab-content active">
+        <div class="stream-container">
+            <h3>🖼️ Standard IMG Tag Method</h3>
+            <div id="imgContainer">
+                <div class="loading">Stream bekleniyor...</div>
+            </div>
+            <div id="imgStatus" class="status info">Hazır</div>
+            <div class="controls">
+                <button class="btn-primary" onclick="testStreamUrl('/stream.mjpeg')">🎥 Ana Stream</button>
+                <button class="btn-warning" onclick="testStreamUrl('/stream-real-mjpeg')">🔄 Alternatif Stream</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas Method -->
+    <div id="canvas-tab" class="tab-content">
+        <div class="stream-container">
+            <h3>🎨 Canvas Yaklaşımı</h3>
+            <canvas id="streamCanvas" width="640" height="480"></canvas>
+            <div id="canvasStatus" class="status info">Hazır</div>
+            <div class="controls">
+                <button class="btn-primary" onclick="startCanvasStream()">🎨 Canvas Stream</button>
+                <button class="btn-warning" onclick="stopCanvasStream()">⏹️ Canvas Durdur</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fetch API Method -->
+    <div id="fetch-tab" class="tab-content">
+        <div class="stream-container">
+            <h3>🌐 Fetch API Test</h3>
+            <div id="fetchContainer">
+                <div class="loading">Test edilmedi</div>
+            </div>
+            <div id="fetchStatus" class="status info">Hazır</div>
+            <div class="controls">
+                <button class="btn-primary" onclick="testFetchStream()">🌐 Fetch Test</button>
+                <button class="btn-success" onclick="analyzeHeaders()">🔍 Headers Analiz</button>
+            </div>
+            <div id="headersInfo" class="debug-info" style="max-height: 200px;">
+                <div>Header analizi yapılmadı</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smooth Stream Method -->
+    <div id="smooth-tab" class="tab-content">
+        <div class="stream-container">
+            <h3>✨ Smooth JavaScript Stream</h3>
+            <div style="text-align: center;">
+                <img id="smoothStreamImg" width="640" height="480" style="border: 3px solid #17a2b8; border-radius: 15px; background: #000;" alt="Smooth Stream" />
+            </div>
+            <div id="smoothStatus" class="status info">Hazır</div>
+            
+            <div class="controls" style="flex-direction: column; align-items: center;">
+                <div style="margin-bottom: 15px;">
+                    <button class="btn-success" onclick="startSmoothStream()">▶️ Başlat</button>
+                    <button class="btn-warning" onclick="pauseSmoothStream()">⏸️ Duraklat</button>
+                    <button class="btn-danger" onclick="stopSmoothStream()">⏹️ Durdur</button>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <label>FPS Kontrolü:</label>
+                    <input type="range" id="fpsSlider" min="1" max="15" value="5" 
+                           style="width: 200px;" oninput="updateFPS(this.value)">
+                    <span id="fpsValue">5</span> FPS
+                </div>
+            </div>
+            
+            <div class="stats" style="margin-top: 20px;">
+                <div class="stat-box">
+                    <div class="stat-value" id="smoothFPS">0</div>
+                    <div class="stat-label">Gerçek FPS</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="smoothFrames">0</div>
+                    <div class="stat-label">Frame Sayısı</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Tools -->
+    <div class="stream-container">
+        <h3>🔧 Network Tools</h3>
+        <div class="controls">
+            <button class="btn-warning" onclick="openNetworkScan()">🔍 Network Scan</button>
+            <button class="btn-primary" onclick="testAllEndpoints()">🧪 Tüm Endpoint Test</button>
+            <button class="btn-success" onclick="downloadLogs()">📥 Log İndir</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SERVER_URL = "http://localhost:5000";
+    const STREAM_URLS = {
+        main: `${SERVER_URL}/stream.mjpeg`,
+        alternative: `${SERVER_URL}/stream-real-mjpeg`
+    };
+
+    let currentImg = null;
+    let debugLog = document.getElementById('debugLog');
+    let status = document.getElementById('status');
+    let connectionCount = 0;
+    let errorCount = 0;
+    let startTime = null;
+    let uptimeInterval = null;
+    
+    // Smooth stream variables
+    let smoothStreamInterval = null;
+    let smoothStreamRunning = false;
+    let smoothFrameCount = 0;
+    let smoothFPS = 5;
+    let smoothFpsCounter = 0;
+    let smoothFpsStartTime = Date.now();
+    
+    // Canvas stream variables
+    let canvasStreamInterval = null;
+    let canvasStreamRunning = false;
+
+    // URL'yi göster
+    document.getElementById('streamUrl').textContent = STREAM_URLS.main;
+
+    function log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const icons = {
+            'error': '❌',
+            'success': '✅', 
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        };
+        const icon = icons[type] || 'ℹ️';
+        debugLog.innerHTML += `<br/>[${timestamp}] ${icon} ${message}`;
+        debugLog.scrollTop = debugLog.scrollHeight;
+        console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    function updateStatus(message, type = 'warning') {
+        status.className = `status ${type}`;
+        status.textContent = message;
+        
+        if (type === 'success') {
+            status.classList.add('pulse');
+            setTimeout(() => status.classList.remove('pulse'), 2000);
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('connectionCount').textContent = connectionCount;
+        document.getElementById('errorCount').textContent = errorCount;
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    }
+
+    function startUptime() {
+        if (uptimeInterval) clearInterval(uptimeInterval);
+        startTime = Date.now();
+        uptimeInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('uptime').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    function stopUptime() {
+        if (uptimeInterval) {
+            clearInterval(uptimeInterval);
+            uptimeInterval = null;
+        }
+        document.getElementById('uptime').textContent = '00:00';
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Remove active from all buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Show selected tab
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+        event.target.classList.add('active');
+        
+        log(`🔄 ${tabName.toUpperCase()} sekmesine geçildi`, 'info');
+    }
+
+    async function testServer() {
+        try {
+            log('🔍 Server bağlantısı test ediliyor...', 'info');
+            const response = await fetch(`${SERVER_URL}/test`, {
+                method: 'GET',
+                cache: 'no-cache'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            log(`✅ Server testi başarılı: ${data.message}`, 'success');
+            updateStatus('Server bağlantısı başarılı', 'success');
+            return true;
+        } catch (error) {
+            log(`❌ Server testi başarısız: ${error.message}`, 'error');
+            updateStatus('Server bağlantısı başarısız', 'error');
+            errorCount++;
+            updateStats();
+            return false;
+        }
+    }
+
+    async function testCamera() {
+        try {
+            log('📹 Kamera bağlantısı test ediliyor...', 'info');
+            const response = await fetch(`${SERVER_URL}/test-camera`, {
+                method: 'GET',
+                cache: 'no-cache'
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                log(`✅ Kamera testi başarılı: ${data.message}`, 'success');
+                updateStatus('Kamera bağlantısı başarılı', 'success');
+            } else {
+                log(`❌ Kamera testi başarısız: ${data.message}`, 'error');
+                updateStatus('Kamera bağlantısı başarısız', 'error');
+                errorCount++;
+            }
+            updateStats();
+        } catch (error) {
+            log(`❌ Kamera test hatası: ${error.message}`, 'error');
+            updateStatus('Kamera test hatası', 'error');
+            errorCount++;
+            updateStats();
+        }
+    }
+
+    function startStream() {
+        testStreamUrl('/stream.mjpeg');
+    }
+
+    function testStreamUrl(streamPath) {
+        log(`🎬 MJPEG stream başlatılıyor: ${streamPath}`, 'info');
+        updateStatus('Stream başlatılıyor...', 'warning');
+        startUptime();
+
+        const imgContainer = document.getElementById('imgContainer');
+        const imgStatus = document.getElementById('imgStatus');
+        imgContainer.innerHTML = '';
+
+        currentImg = document.createElement('img');
+        currentImg.className = 'stream-img';
+        currentImg.alt = 'MJPEG Stream';
+
+        currentImg.onload = function() {
+            log('✅ IMG: Stream başarıyla yüklendi', 'success');
+            updateStatus('Stream aktif (IMG method)', 'success');
+            imgStatus.className = 'status success';
+            imgStatus.textContent = 'Stream aktif ✅';
+            connectionCount++;
+            updateStats();
+        };
+
+        currentImg.onerror = function(e) {
+            log('❌ IMG: Stream yükleme hatası', 'error');
+            updateStatus('Stream hatası (IMG method)', 'error');
+            imgStatus.className = 'status error';
+            imgStatus.textContent = 'Stream hatası ❌';
+            currentImg.classList.add('error');
+            errorCount++;
+            updateStats();
+        };
+
+        currentImg.onabort = function() {
+            log('⚠️ IMG: Stream iptal edildi', 'warning');
+        };
+
+        const timestamp = new Date().getTime();
+        const streamUrl = `${SERVER_URL}${streamPath}?t=${timestamp}&cache=no`;
+        currentImg.src = streamUrl;
+        imgContainer.appendChild(currentImg);
+
+        document.getElementById('streamUrl').textContent = streamUrl;
+        log(`🔗 Stream URL ayarlandı: ${streamUrl}`, 'info');
+    }
+
+    function stopStream() {
+        log('⏹️ Stream durduruluyor...', 'warning');
+        stopUptime();
+        stopSmoothStream();
+        stopCanvasStream();
+
+        if (currentImg) {
+            currentImg.src = '';
+            currentImg.remove();
+            currentImg = null;
+        }
+
+        document.getElementById('imgStatus').className = 'status info';
+        document.getElementById('imgStatus').textContent = 'Durduruldu';
+
+        updateStatus('Stream durduruldu', 'warning');
+        connectionCount = 0;
+        updateStats();
+    }
+
+    function refreshStream() {
+        log('🔄 Stream yenileniyor...', 'info');
+        stopStream();
+        setTimeout(startStream, 2000);
+    }
+
+    function clearLog() {
+        debugLog.innerHTML = '🗑️ Log temizlendi...';
+        errorCount = 0;
+        updateStats();
+    }
+
+    // Canvas Stream Functions
+    function startCanvasStream() {
+        if (canvasStreamRunning) return;
+        
+        canvasStreamRunning = true;
+        const canvas = document.getElementById('streamCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasStatus = document.getElementById('canvasStatus');
+        
+        log('🎨 Canvas stream başlatılıyor...', 'info');
+        
+        function updateCanvasFrame() {
+            if (!canvasStreamRunning) return;
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvasStatus.className = 'status success';
+                canvasStatus.textContent = 'Canvas aktif ✅';
+            };
+            
+            img.onerror = function() {
+                log('❌ Canvas: Frame yükleme hatası', 'error');
+                canvasStatus.className = 'status error';
+                canvasStatus.textContent = 'Canvas hatası ❌';
+                errorCount++;
+                updateStats();
+            };
+            
+            const timestamp = new Date().getTime();
+            img.src = `${SERVER_URL}/single-frame?t=${timestamp}`;
+        }
+        
+        updateCanvasFrame();
+        canvasStreamInterval = setInterval(updateCanvasFrame, 2000);
+    }
+
+    function stopCanvasStream() {
+        canvasStreamRunning = false;
+        if (canvasStreamInterval) {
+            clearInterval(canvasStreamInterval);
+            canvasStreamInterval = null;
+        }
+        
+        document.getElementById('canvasStatus').className = 'status info';
+        document.getElementById('canvasStatus').textContent = 'Durduruldu';
+    }
+
+    // Smooth Stream Functions
+    function startSmoothStream() {
+        if (smoothStreamRunning) return;
+        
+        smoothStreamRunning = true;
+        smoothFrameCount = 0;
+        smoothFpsCounter = 0;
+        smoothFpsStartTime = Date.now();
+        
+        const img = document.getElementById('smoothStreamImg');
+        const status = document.getElementById('smoothStatus');
+        
+        log('✨ Smooth stream başlatılıyor...', 'info');
+        status.className = 'status success';
+        status.textContent = 'Smooth stream aktif ✅';
+        
+        function updateSmoothFrame() {
+            if (!smoothStreamRunning) return;
+            
+            const timestamp = new Date().getTime();
+            const newImg = new Image();
+            
+            newImg.onload = function() {
+                img.src = newImg.src;
+                smoothFrameCount++;
+                document.getElementById('smoothFrames').textContent = smoothFrameCount;
+                
+                // FPS hesapla
+                smoothFpsCounter++;
+                const elapsed = (Date.now() - smoothFpsStartTime) / 1000;
+                if (elapsed >= 1) {
+                    document.getElementById('smoothFPS').textContent = Math.round(smoothFpsCounter / elapsed);
+                    smoothFpsCounter = 0;
+                    smoothFpsStartTime = Date.now();
+                }
+            };
+            
+            newImg.onerror = function() {
+                log('❌ Smooth: Frame yükleme hatası', 'error');
+            };
+            
+            newImg.src = `${SERVER_URL}/single-frame?t=${timestamp}`;
+        }
+        
+        updateSmoothFrame();
+        smoothStreamInterval = setInterval(updateSmoothFrame, Math.round(1000 / smoothFPS));
+    }
+
+    function pauseSmoothStream() {
+        smoothStreamRunning = !smoothStreamRunning;
+        const status = document.getElementById('smoothStatus');
+        
+        if (smoothStreamRunning) {
+            startSmoothStream();
+        } else {
+            clearInterval(smoothStreamInterval);
+            status.className = 'status warning';
+            status.textContent = 'Smooth stream duraklatıldı ⏸️';
+        }
+    }
+
+    function stopSmoothStream() {
+        smoothStreamRunning = false;
+        if (smoothStreamInterval) {
+            clearInterval(smoothStreamInterval);
+            smoothStreamInterval = null;
+        }
+        
+        const status = document.getElementById('smoothStatus');
+        status.className = 'status info';
+        status.textContent = 'Durduruldu';
+        
+        document.getElementById('smoothFPS').textContent = '0';
+        document.getElementById('smoothFrames').textContent = '0';
+        smoothFrameCount = 0;
+    }
+
+    function updateFPS(value) {
+        smoothFPS = parseInt(value);
+        document.getElementById('fpsValue').textContent = smoothFPS;
+        
+        if (smoothStreamRunning) {
+            clearInterval(smoothStreamInterval);
+            smoothStreamInterval = setInterval(() => {
+                if (!smoothStreamRunning) return;
+                
+                const timestamp = new Date().getTime();
+                const img = document.getElementById('smoothStreamImg');
+                const newImg = new Image();
+                
+                newImg.onload = function() {
+                    img.src = newImg.src;
+                    smoothFrameCount++;
+                    document.getElementById('smoothFrames').textContent = smoothFrameCount;
+                };
+                
+                newImg.src = `${SERVER_URL}/single-frame?t=${timestamp}`;
+            }, Math.round(1000 / smoothFPS));
+        }
+    }
+
+    // Fetch API Functions
+    async function testFetchStream() {
+        const fetchStatus = document.getElementById('fetchStatus');
+        fetchStatus.className = 'status warning';
+        fetchStatus.textContent = 'Fetch API test ediliyor...';
+        
+        log('🌐 Fetch API ile stream test ediliyor...', 'info');
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch(STREAM_URLS.main, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'multipart/x-mixed-replace,image/jpeg,*/*',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                },
+                signal: controller.signal,
+                cache: 'no-cache'
+            });
+
+            clearTimeout(timeoutId);
+
+            log(`📊 Fetch response status: ${response.status} ${response.statusText}`, 'info');
+
+            if (response.ok) {
+                const contentType = response.headers.get('content-type');
+                log(`📄 Content-Type: ${contentType}`, 'info');
+
+                if (contentType && contentType.includes('multipart')) {
+                    fetchStatus.className = 'status success';
+                    fetchStatus.textContent = 'Fetch API: Stream erişilebilir ✅';
+                    log('✅ Fetch API: MJPEG stream başarıyla erişildi', 'success');
+                } else {
+                    fetchStatus.className = 'status error';
+                    fetchStatus.textContent = 'Fetch API: Yanlış content-type ❌';
+                    log(`❌ Fetch API: Beklenmeyen content-type: ${contentType}`, 'error');
+                }
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                log('⏱️ Fetch API: Timeout (10 saniye)', 'warning');
+                fetchStatus.className = 'status warning';
+                fetchStatus.textContent = 'Fetch API: Timeout ⏱️';
+            } else {
+                fetchStatus.className = 'status error';
+                fetchStatus.textContent = `Fetch API hatası: ${error.message}`;
+                log(`❌ Fetch API hatası: ${error.message}`, 'error');
+                errorCount++;
+                updateStats();
+            }
+        }
+    }
+
+    async function analyzeHeaders() {
+        const headersInfo = document.getElementById('headersInfo');
+        headersInfo.innerHTML = '<div>🔍 Headers analiz ediliyor...</div>';
+        
+        try {
+            log('🔍 HTTP headers analiz ediliyor...', 'info');
+            
+            const response = await fetch(STREAM_URLS.main, {
+                method: 'HEAD',
+                cache: 'no-cache'
+            });
+            
+            let headersHtml = '<strong>📋 HTTP Headers:</strong><br/>';
+            
+            for (let [key, value] of response.headers.entries()) {
+                headersHtml += `<strong>${key}:</strong> ${value}<br/>`;
+                log(`Header: ${key} = ${value}`, 'info');
+            }
+            
+            headersHtml += `<br/><strong>📊 Response Info:</strong><br/>`;
+            headersHtml += `<strong>Status:</strong> ${response.status} ${response.statusText}<br/>`;
+            headersHtml += `<strong>OK:</strong> ${response.ok}<br/>`;
+            headersHtml += `<strong>Type:</strong> ${response.type}<br/>`;
+            headersHtml += `<strong>URL:</strong> ${response.url}<br/>`;
+            
+            headersInfo.innerHTML = headersHtml;
+            
+        } catch (error) {
+            headersInfo.innerHTML = `<div style="color: #dc3545;">❌ Headers analiz hatası: ${error.message}</div>`;
+            log(`❌ Headers analiz hatası: ${error.message}`, 'error');
+        }
+    }
+
+    // Network Tools
+    function openNetworkScan() {
+        window.open(`${SERVER_URL}/network-scan`, '_blank');
+        log('🔍 Network scan sayfası açıldı', 'info');
+    }
+
+    async function testAllEndpoints() {
+        log('🧪 Tüm endpoint testleri başlatılıyor...', 'info');
+        updateStatus('Kapsamlı test yapılıyor...', 'warning');
+        
+        const endpoints = [
+            { name: 'Server', url: '/test' },
+            { name: 'Kamera', url: '/test-camera' },
+            { name: 'Tek Frame', url: '/single-frame' },
+            { name: 'RTSP URLs', url: '/test-rtsp-urls' }
+        ];
+        
+        for (const endpoint of endpoints) {
+            try {
+                log(`Testing ${endpoint.name}...`, 'info');
+                const response = await fetch(`${SERVER_URL}${endpoint.url}`);
+                
+                if (response.ok) {
+                    log(`✅ ${endpoint.name} test başarılı`, 'success');
+                } else {
+                    log(`❌ ${endpoint.name} test başarısız: ${response.status}`, 'error');
+                    errorCount++;
+                }
+            } catch (error) {
+                log(`❌ ${endpoint.name} test hatası: ${error.message}`, 'error');
+                errorCount++;
+            }
+        }
+        
+        updateStats();
+        updateStatus('Kapsamlı test tamamlandı', 'success');
+        log('🧪 Tüm testler tamamlandı', 'success');
+    }
+
+    function downloadLogs() {
+        const logs = debugLog.innerHTML;
+        const blob = new Blob([logs], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mjpeg-debug-logs-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        log('📥 Debug logları indirildi', 'success');
+    }
+
+    // Sayfa yüklendiğinde otomatik test
+    window.onload = function() {
+        log('🚀 Sayfa yüklendi, sistem kontrolü başlatılıyor...', 'info');
+        updateStats();
+        
+        testServer().then(success => {
+            if (success) {
+                log('⏳ 2 saniye sonra otomatik stream başlatılacak...', 'info');
+                setTimeout(() => {
+                    startStream();
+                }, 2000);
+            } else {
+                log('⚠️ Server bağlantısı başarısız, manuel başlatma gerekli', 'warning');
+            }
+        });
+    };
+
+    // Sayfa kapatılırken temizlik
+    window.onbeforeunload = function() {
+        stopStream();
+    };
+</script>
+</body>
+</html>
